@@ -5,60 +5,75 @@
         <div class="modal-container">
           <div class="main"></div>
           <div class="form">
-            <h3 @click="showRegister">新建账户</h3>
-            <transition>
+            <h3 @click="showRegister">创建账户</h3>
+            <transition name="slide">
               <div v-bind:class="{show: isShowRegister}" class="register">
-                <input type="text" v-model="register.username" @keyup.enter="onRegister" placeholder="用户名">
-                <input type="passwprd" v-model="register.password" @keyup.enter="onRegister" placeholder="密码">
-                <p v-bind:class="{error: register.isError}">{{ register.notice }}</p>
+                <input type="text" v-model="register.username" placeholder="用户名">
+                <input type="password" v-model="register.password" @keyup.enter="onRegister" placeholder="密码">
+                <p v-bind:class="{error: register.isError}"> {{register.notice}}</p>
                 <div class="button" @click="onRegister">创建账号</div>
               </div>
             </transition>
             <h3 @click="showLogin">登录</h3>
-            <transition>
+            <transition name="slide">
               <div v-bind:class="{show: isShowLogin}" class="login">
-                <input type="text" v-model="login.username" @keyup.enter="onLogin" placeholder="输入用户名">
-                <input type="password" v-model="login.password" @keyup.enter="onLogin" placeholder="输入密码">
-                <p v-bind:class="{error: login.isError}">{{ login.notice }}</p>
-                <div class="button" @click="onLogin">登录</div>
+                <input type="text" v-model="login.username" placeholder="输入用户名">
+                <input type="password" v-model="login.password" @keyup.enter="onLogin"  placeholder="密码">
+                <p v-bind:class="{error: login.isError}"> {{login.notice}}</p>
+                <div class="button" @click="onLogin"> 登录</div>
               </div>
             </transition>
           </div>
         </div>
       </div>
     </div>
-  </div>
+
+    </div>
 </template>
 
 <script>
-import Auth from '@/api/auth'
+
+  import Auth from '@/apis/auth'
+  import Bus from '@/helpers/bus'
+
+  // Auth.getInfo()
+  //   .then(data => {
+  //     console.log(data)
+  //   })
+
+  // request('/auth')
+  //  .then(data=>{
+  //    console.log(data)
+  //   })
+
+
   export default {
     data(){
       return {
-        isShowRegister: false,
         isShowLogin: true,
-        register:{
+        isShowRegister: false,
+        login: {
           username: '',
           password: '',
-          isError: false,
-          notice: '创建账号后，请记住用户名和密码'
+          notice: '输入用户名和密码',
+          isError: false
         },
-        login:{
+        register: {
           username: '',
           password: '',
-          isError: false,
-          notice: '输入用户和密码'
+          notice: '创建账号后，请记住用户名和密码',
+          isError: false
         }
       }
     },
     methods: {
-      showRegister(){
-        this.isShowLogin = false
-        this.isShowRegister = true
-      },
       showLogin(){
         this.isShowLogin = true
         this.isShowRegister = false
+      },
+      showRegister(){
+        this.isShowLogin = false
+        this.isShowRegister = true
       },
       onRegister(){
         if(!/^[\w\u4e00-\u9fa5]{3,15}$/.test(this.register.username)){
@@ -71,15 +86,19 @@ import Auth from '@/api/auth'
           this.register.notice = '密码长度为6~16个字符'
           return
         }
-        this.register.isError = false
-        this.register.notice = ''
-        console.log(`start register..., username: ${this.register.username} , password: ${this.register.password}`)
+
         Auth.register({
-          username : this.register.username,
-          password : this.register.password         
-        }).then(data => {
-          console.log(data)
-        })
+            username: this.register.username, 
+            password: this.register.password
+          }).then(data => {
+            this.register.isError = false
+            this.register.notice = ''
+            Bus.$emit('userInfo', { username: this.login.username })
+            this.$router.push({ path: 'notebooks' })
+          }).catch(data => {
+            this.register.isError = true
+            this.register.notice = data.msg
+          })
       },
       onLogin(){
         if(!/^[\w\u4e00-\u9fa5]{3,15}$/.test(this.login.username)){
@@ -92,19 +111,26 @@ import Auth from '@/api/auth'
           this.login.notice = '密码长度为6~16个字符'
           return
         }
-        this.login.isError = false
-        this.login.notice = ''  
-        console.log(`start login..., username: ${this.login.username} , password: ${this.login.password}`)
+        
         Auth.login({
-          username : this.login.username,
-          password : this.login.password
-        }).then(data => {
-          console.log(data)
-        })
+            username: this.login.username, 
+            password: this.login.password
+          }).then(data => {
+            this.login.isError = false
+            this.login.notice = ''
+            Bus.$emit('userInfo', { username: this.login.username })
+            this.$router.push({ path: 'notebooks' })
+          }).catch(data => {
+            this.login.isError = true
+            this.login.notice = data.msg
+          }),
+        Auth.getInfo().then(res=>{console.log(res.isLogin)})
       }
     }
   }
 </script>
+
+
 
 <style lang="less">
 .modal-mask {
@@ -133,9 +159,9 @@ import Auth from '@/api/auth'
   font-family: Helvetica, Arial, sans-serif;
   display: flex;
   .main {
-      flex: 1;
-      background: #36bc64 url(//cloud.hunger-valley.com/17-12-13/38476998.jpg-middle) center center no-repeat;
-      background-size: contain;
+    flex: 1;
+    background: #36bc64 url(//cloud.hunger-valley.com/17-12-13/38476998.jpg-middle) center center no-repeat;
+    background-size: contain;
   }
   .form {
     width: 270px;
@@ -166,23 +192,23 @@ import Auth from '@/api/auth'
     .login,.register {
       padding: 0px 20px;
       border-top: 1px solid #eee;
-      height: 0;
-      overflow: hidden;
-      transition: height .4s;
-      &.show {
+       height: 0;
+       overflow: hidden;
+       transition: height .4s;
+       &.show {
         height: 193px;
-      }
+       }
       input {
-          display: block;
-          width: 100%;
-          height: 35px;
-          line-height: 35px;
-          padding: 0 6px;
-          border-radius: 4px;
-          border: 1px solid #ccc;
-          outline: none;
-          font-size: 14px;
-          margin-top: 10px;
+        display: block;
+        width: 100%;
+        height: 35px;
+        line-height: 35px;
+        padding: 0 6px;
+        border-radius: 4px;
+        border: 1px solid #ccc;
+        outline: none;
+        font-size: 14px;
+        margin-top: 10px;
       }
       input:focus {
         border: 3px solid #9dcaf8;
@@ -193,7 +219,7 @@ import Auth from '@/api/auth'
         color: #444;
       }
       .error {
-          color: red;
+        color: red;
       }
     }
     .login {
